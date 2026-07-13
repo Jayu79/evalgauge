@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Generated data / warehouse artifacts (reproducible from seed — not source)
+data/
+*.jsonl
+*.duckdb
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
