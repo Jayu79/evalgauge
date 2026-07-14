@@ -15,14 +15,14 @@ Legend: ✅ done · 🟡 in progress · ⬜ not started
 | Design | `docs/threat_model.md` | ✅ |
 | Data | `tripwire/generate/` | ✅ |
 | Ingestion | `tripwire/stream/` | ✅ |
-| Detection | `tripwire/detect/` | 🟡 fast tier + judge built; two-tier wiring remains |
+| Detection | `tripwire/detect/` | ✅ |
 | Warehouse | `tripwire/warehouse/` (DuckDB) | ⬜ |
 | Transform | `dbt/` (staging → marts → metrics) | ⬜ |
 | Presentation | `dashboard/` wired to real data | ⬜ |
 | Write-up | case study + **failure analysis** | ⬜ |
 
-**Next:** `TwoTierDetector` wiring — fast score → threshold bands → escalate ambiguous to
-the judge → emit a `Detection` record (maps to dbt `stg_detections`).
+**Next:** `warehouse/` — land `Event` + `GroundTruth` + `Detection` into DuckDB tables that
+map 1:1 onto dbt's `stg_events` / `stg_detections`.
 
 ---
 
@@ -90,6 +90,17 @@ Reasoned assets → adversaries → attack surface → severity, *then* derived 
   - Verified the (stub) judge **rescues both tier-1 failure modes**: decodes a base64 attack
     tier-1 was blind to, and reads fiction/security-ed context to clear false positives tier-1
     fired at 0.85. Every verdict carries latency + cost (backs `mtr_tier_contribution`).
+- **`TwoTierDetector` wiring** (`detector.py`, `schema.py`): fast score → two-threshold bands
+  (clear-benign / ambiguous / clear-attack) → escalate only the ambiguous band to the judge →
+  emit a `Detection` (== dbt `stg_detections`). Thresholds are the tunable operating-point knob.
+- **First end-to-end run** (generate → blind stream → detect → score against held-aside truth):
+  - Tier-1 alone @0.5: 100% catch but **45.8% FP rate** (275 false positives) — unusable.
+  - Two-tier: **92.4% catch, 0.0% FP** — the judge wiped out all 275 FPs for 91 lost catches.
+    That's Asset A vs Asset B, quantified; ~31% escalation; catches split fast 909 / judge 200.
+  - **Honesty caveat:** these magnitudes use the vocab-matched `StubJudge` and are optimistic —
+    NOT the real judge. The *wiring* and the *direction* (trade recall for a large FP cut) are
+    real; true numbers await swapping in `ClaudeJudge`. Even the stub isn't perfect (missed 91
+    escalated attacks — biased benign).
 
 ---
 
