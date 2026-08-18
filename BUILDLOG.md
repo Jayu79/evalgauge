@@ -150,7 +150,11 @@ Reasoned assets → adversaries → attack surface → severity, *then* derived 
 - Hosted verification (2026-08-17): GitHub Actions CI passed on Python 3.11 for commit `043c258`
   after installing the project from a clean checkout and running the complete offline test path.
 - The GitHub repository was renamed to `Jayu79/evalgauge`, and the local `origin` now points to it.
-  The remaining public-release blocker is choosing an explicit license.
+  The repository's original code and documentation are now licensed under Apache-2.0. External
+  datasets and third-party materials remain under their own terms and are tracked separately.
+- Removed Claude `Co-Authored-By` trailers from the early commit messages. All commits were already
+  authored and committed by Jayanth; the rewrite changed messages only, preserved the complete tree,
+  and was force-pushed with an explicit lease. A local recovery branch preserves the prior history.
 - **Naming migration (2026-08-17):** retired the conflicting Tripwire working name and adopted
   **EvalGauge**. The old name collided with an established cybersecurity company and open-source
   product, creating avoidable trademark, discovery, and reader-confusion risk. EvalGauge instead

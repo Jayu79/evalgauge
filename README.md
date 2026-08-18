@@ -167,5 +167,19 @@ BUILDLOG.md    status + decision log
 
 ---
 
+## License
+
+Copyright 2026 Jayanth Veeramachaneni.
+
+EvalGauge's original code and documentation are licensed under the
+[Apache License 2.0](LICENSE).
+
+External datasets and third-party materials are not automatically covered by EvalGauge's license.
+They retain their original licenses and attribution requirements, recorded in
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). No external dataset is currently redistributed
+with this repository.
+
+---
+
 *Numbers shown in the dashboard mock are illustrative. This is a controlled measurement over
 labeled data — explicitly not a claim about live, unlabeled production traffic.*
