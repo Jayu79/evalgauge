@@ -1,8 +1,8 @@
-# Tripwire
+# EvalGauge
 
 **A data pipeline that catches jailbreak attempts and measures what your safeguards actually stop.**
 
-Tripwire treats adversarial-prompt detection as a production **data-engineering and measurement**
+EvalGauge treats adversarial-prompt detection as a production **data-engineering and measurement**
 problem, not an ML demo. It ingests a stream of inbound prompts, classifies jailbreak attempts
 through a two-tier detector, lands the results in a warehouse, and models them into the metrics a
 safety team actually needs: *is this safeguard working, and what is it costing legitimate users?*
@@ -10,8 +10,10 @@ safety team actually needs: *is this safeguard working, and what is it costing l
 The interesting part is not the classifier. It's the lineage, the measurement, and the honesty
 about what the system misses.
 
-> **Status: active build.** See [`BUILDLOG.md`](BUILDLOG.md) for the running decision log and
+> **Status: active build.** The local measurement path now runs end-to-end through DuckDB. See [`BUILDLOG.md`](BUILDLOG.md) for the running decision log and
 > [`docs/threat_model.md`](docs/threat_model.md) for the reasoning that drives every design choice.
+> The approved expansion into a complete, provider-neutral safeguard-eval harness is defined in
+> [`docs/eval_harness_scope.md`](docs/eval_harness_scope.md).
 
 ---
 
@@ -26,7 +28,7 @@ that matter:
 2. **The false-positive burden on real users** — over-blocking benign traffic is itself a safety and
    trust failure, not a rounding error.
 
-Tripwire surfaces both, with per-family breakdowns, a benign-traffic control group, and a
+EvalGauge surfaces both, with per-family breakdowns, a benign-traffic control group, and a
 before/after view that simulates switching a mitigation on and measures its real effect.
 
 **The one rule:** never report catch rate without false-positive burden beside it.
@@ -64,9 +66,9 @@ compute it at production weights, and it's exactly what a single accuracy figure
 |-------|------|-----|
 | Data | synthetic generator (+ public corpora) | labeled prompts with full provenance |
 | Ingestion | replay producer over a pub/sub-style bus | timestamped, **detector-blind** event stream |
-| Detection | TF-IDF + logistic regression, then Claude-as-judge | two-tier classification with cost/latency awareness |
+| Detection | TF-IDF + logistic regression, then provider-neutral LLM judge | two-tier classification with cost/latency awareness; Claude built, OpenAI planned |
 | Warehouse | DuckDB (simulating Snowflake) | raw detections + provenance |
-| Transform | dbt | precision/recall by family, FP burden, intervention effect |
+| Transform | dbt | catch rate by family, FP burden, tier contribution |
 | Presentation | dashboard | live stream, catch rate, FP rate, intervention toggle |
 
 ---
@@ -76,11 +78,11 @@ compute it at production weights, and it's exactly what a single accuracy figure
 | Layer | Module | Status |
 |---|---|---|
 | Design | `docs/threat_model.md` | ✅ done |
-| Data | `tripwire/generate/` | ✅ done |
-| Ingestion | `tripwire/stream/` | ✅ done |
-| Detection | `tripwire/detect/` | 🟡 fast tier + judge built; two-tier wiring next |
-| Warehouse | `tripwire/warehouse/` | ⬜ planned |
-| Transform | `dbt/` | ⬜ planned |
+| Data | `evalgauge/generate/` | ✅ done |
+| Ingestion | `evalgauge/stream/` | ✅ done |
+| Detection | `evalgauge/detect/` | ✅ two-tier detector wired; offline stub + real judge adapter |
+| Warehouse | `evalgauge/warehouse/` | ✅ DuckDB raw tables + strict post-detection join |
+| Transform | `dbt/` | ✅ staging, classification fact, family/FP/tier metrics |
 | Presentation | `dashboard/` (wired to real data) | ⬜ planned |
 | Write-up | case study + failure analysis | ⬜ planned |
 
@@ -110,12 +112,37 @@ Full detail and rationale: [`BUILDLOG.md`](BUILDLOG.md).
   explicit, auditable policy — verified to rescue both of tier 1's failure modes (it decodes a
   disguised attack tier 1 was blind to, *and* reads context to clear false positives tier 1 fired at
   0.85). Pluggable interface with an offline stub so the pipeline runs without an API key.
+- **A strict DuckDB landing layer.** `events`, `ground_truth`, and `detections` stay separate until
+  the post-detection `joined_results` view. Foreign keys reject orphan truth/predictions, immutable
+  duplicate records are idempotent, conflicting duplicates fail loudly, and run ingestion is
+  transactional. Provenance, arrival time, tier routing, scores, latency, and judge cost are kept.
+
+## Reproducible offline run
+
+From `EvalGauge/`:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/python -m evalgauge.offline --db data/evalgauge.duckdb --seed 42 --replace
+```
+
+This generates disjoint-template train/eval corpora, replays 1,800 evaluation events through the
+blind stream, runs both detector tiers with `StubJudge`, lands a complete DuckDB database, and runs
+the tested dbt fact and metric models.
+`--replace` explicitly permits rebuilding the output; without it, an existing database is preserved.
+Stub results verify pipeline wiring, not real Claude evaluation quality.
+
+The current database represents one rebuildable run: sequential event IDs are not namespaced by a
+`run_id`, and runtime latency can vary between executions. Multi-run lineage and explicit dataset,
+detector, and policy versioning are later work; this raw warehouse is intentionally foundational,
+not the project's final analytical contribution.
 
 ---
 
 ## Scope: defensive measurement, not attack generation
 
-Tripwire **classifies and measures** adversarial prompts as data. It does **not** generate novel
+EvalGauge **classifies and measures** adversarial prompts as data. It does **not** generate novel
 working jailbreaks. The synthetic module produces *labeled examples for evaluation* whose "harmful"
 slot is a benign stand-in (e.g. "reveal your system prompt") — a real jailbreak *technique* with no
 dangerous payload. That boundary is enforced in the design, not just stated in a README.
@@ -125,12 +152,15 @@ dangerous payload. That boundary is enforced in the design, not just stated in a
 ## Repo layout
 
 ```
-tripwire/
+evalgauge/
   generate/    synthetic labeled-prompt generator (schema, families, corpus)
   stream/      blind event replay (event model, bus, producer)
   detect/      two-tier detector (fast classifier, constitutional judge)
+  warehouse/   DuckDB schema, idempotent ingestion, post-detection join
+  offline.py   reproducible local pipeline command
+tests/         warehouse contracts and end-to-end blindness/coverage tests
 docs/          threat model, case-study outline
-dbt/           transform-layer spec (models coming)
+dbt/           tested staging, classification fact, and measurement metrics
 dashboard/     dashboard mock (to be wired to real data)
 BUILDLOG.md    status + decision log
 ```

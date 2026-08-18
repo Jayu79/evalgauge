@@ -1,4 +1,4 @@
-"""The data contract for every labeled prompt Tripwire produces.
+"""The data contract for every labeled prompt EvalGauge produces.
 
 Design intent: define the *shape* of the output before any generation logic. Every
 prompt — synthetic or from a public corpus — obeys this contract, which is what lets
@@ -40,7 +40,7 @@ class Family(str, Enum):
 class Label(str, Enum):
     """Ground truth. Known *only* because we generated (or hand-labeled) the data.
 
-    This is the entire basis for Tripwire's honesty boundary: it reports precision/
+    This is the entire basis for EvalGauge's honesty boundary: it reports precision/
     recall as a *controlled* measurement over labeled data, and makes no claim about
     live unlabeled traffic (threat_model.md §0, §7).
     """

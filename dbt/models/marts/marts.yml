@@ -1,0 +1,13 @@
+version: 2
+
+models:
+  - name: fct_classifications
+    description: One complete prediction-versus-truth record per evaluated event.
+    columns:
+      - name: event_id
+        data_tests: [not_null, unique]
+      - name: ground_truth_label
+        data_tests: [not_null]
+      - name: final_flag
+        data_tests: [not_null]
+

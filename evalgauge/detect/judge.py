@@ -114,7 +114,7 @@ class StubJudge:
 
     Deliberately crude — a hand-rolled heuristic, not a real classifier. It exists to run
     the pipeline offline and to show the *shape* of tier-2 reasoning (decode disguise,
-    read context). Do not read its accuracy as Tripwire's real judge performance; that is
+    read context). Do not read its accuracy as EvalGauge's real judge performance; that is
     ClaudeJudge's job.
     """
 

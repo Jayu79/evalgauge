@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-// Tripwire dashboard — a monitoring console for a jailbreak-detection pipeline.
+// EvalGauge dashboard — a monitoring console for a jailbreak-detection pipeline.
 // Design intent: instrument panel, not marketing page. Monospace data, restrained
 // signal colors, one signature interaction — the intervention toggle that moves
 // catch-rate and false-positive burden together, which is the project's whole thesis.
@@ -73,7 +73,7 @@ export default function Dashboard() {
       {/* header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: `1px solid ${C.line}`, paddingBottom: 14, marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-          <span style={{ fontFamily: C.mono, fontSize: 20, fontWeight: 700, letterSpacing: 1 }}>TRIPWIRE</span>
+          <span style={{ fontFamily: C.mono, fontSize: 20, fontWeight: 700, letterSpacing: 1 }}>EVALGAUGE</span>
           <span style={{ fontFamily: C.mono, fontSize: 11, color: C.dim }}>jailbreak detection · live</span>
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: C.mono, fontSize: 12 }}>

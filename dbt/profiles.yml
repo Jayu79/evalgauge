@@ -1,0 +1,8 @@
+evalgauge:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      path: "{{ env_var('EVALGAUGE_DB_PATH', 'data/evalgauge.duckdb') }}"
+      threads: 1
+

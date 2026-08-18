@@ -15,6 +15,11 @@ data/
 *.jsonl
 *.duckdb
 
+# dbt generated artifacts / local user state
+dbt/target/
+dbt/logs/
+dbt/.user.yml
+
 # OS / editor
 .DS_Store
 .vscode/

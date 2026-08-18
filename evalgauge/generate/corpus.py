@@ -114,7 +114,7 @@ def summarize(corpus: list[LabeledPrompt]) -> dict[str, int]:
 
 
 if __name__ == "__main__":
-    # `python -m tripwire.generate.corpus` → build the default corpus and write it.
+    # `python -m evalgauge.generate.corpus` → build the default corpus and write it.
     corpus = build_corpus(seed=42)
     n = write_jsonl(corpus, "data/corpus.jsonl")
     print(f"wrote {n} prompts to data/corpus.jsonl")

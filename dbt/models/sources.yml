@@ -1,0 +1,73 @@
+version: 2
+
+sources:
+  - name: evalgauge_raw
+    schema: main
+    tables:
+      - name: events
+        columns:
+          - name: event_id
+            data_tests: [not_null, unique]
+          - name: ts
+            data_tests: [not_null]
+          - name: prompt_hash
+            data_tests: [not_null]
+          - name: text
+            data_tests: [not_null]
+
+      - name: ground_truth
+        columns:
+          - name: event_id
+            data_tests:
+              - not_null
+              - unique
+              - relationships:
+                  arguments:
+                    to: source('evalgauge_raw', 'events')
+                    field: event_id
+          - name: family
+            data_tests: [not_null]
+          - name: label
+            data_tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: [attack, benign]
+          - name: is_synthetic
+            data_tests: [not_null]
+          - name: source
+            data_tests: [not_null]
+          - name: objective
+            data_tests: [not_null]
+
+      - name: detections
+        columns:
+          - name: event_id
+            data_tests:
+              - not_null
+              - unique
+              - relationships:
+                  arguments:
+                    to: source('evalgauge_raw', 'events')
+                    field: event_id
+          - name: tier1_score
+            data_tests: [not_null]
+          - name: tier1_band
+            data_tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: [clear_benign, ambiguous, clear_attack]
+          - name: final_flag
+            data_tests: [not_null]
+          - name: decided_by
+            data_tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: [fast, judge]
+          - name: latency_ms
+            data_tests: [not_null]
+          - name: judge_cost_usd
+            data_tests: [not_null]
+

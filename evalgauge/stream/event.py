@@ -7,7 +7,7 @@ At the stream boundary, every labeled corpus record is split into two objects:
 - GroundTruth — the answer key (family, label, ...), held aside and keyed by event_id.
                 It is joined back downstream to *score* the detector, never shown to it.
 
-This split is why Tripwire's measurements are trustworthy: the detector cannot cheat,
+This split is why EvalGauge's measurements are trustworthy: the detector cannot cheat,
 because the truth is structurally out of its reach until after it has committed. In
 production the GroundTruth simply would not exist (traffic is unlabeled) — see
 docs/threat_model.md §0/§7.

@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: mtr_false_positive_burden
+    description: >
+      One-row benign burden summary. False-alarm share uses the deliberately
+      stratified evaluation mix and is not a production-base-rate estimate.
+    columns:
+      - name: benign_examples
+        data_tests: [not_null]
+      - name: false_positives
+        data_tests: [not_null]
+      - name: false_positive_rate
+        data_tests: [not_null]
+
+  - name: mtr_performance_by_family
+    description: >
+      Catch performance by true attack family, paired with evaluation-wide
+      benign false-positive burden at the same detector operating point.
+    columns:
+      - name: evaluation_family
+        data_tests: [not_null, unique]
+      - name: attack_examples
+        data_tests: [not_null]
+      - name: catch_rate
+        data_tests: [not_null]
+      - name: false_positive_rate
+        data_tests: [not_null]
+
+  - name: mtr_tier_contribution
+    description: >
+      Final decisions and outcomes by deciding tier. Latency is end-to-end
+      event latency, not incremental latency attributable to the judge alone.
+    columns:
+      - name: decided_by
+        data_tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values: [fast, judge]
+      - name: decisions
+        data_tests: [not_null]
+

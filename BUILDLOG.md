@@ -1,4 +1,4 @@
-# Tripwire — Build Log
+# EvalGauge — Build Log
 
 A running record of **what's built, what's next, and the decisions behind each choice**.
 Terse and decision-focused on purpose: this is the raw material for the case study, so the
@@ -13,16 +13,16 @@ Legend: ✅ done · 🟡 in progress · ⬜ not started
 | Layer | Module | Status |
 |---|---|---|
 | Design | `docs/threat_model.md` | ✅ |
-| Data | `tripwire/generate/` | ✅ |
-| Ingestion | `tripwire/stream/` | ✅ |
-| Detection | `tripwire/detect/` | ✅ |
-| Warehouse | `tripwire/warehouse/` (DuckDB) | ⬜ |
-| Transform | `dbt/` (staging → marts → metrics) | ⬜ |
+| Data | `evalgauge/generate/` | ✅ |
+| Ingestion | `evalgauge/stream/` | ✅ |
+| Detection | `evalgauge/detect/` | ✅ |
+| Warehouse | `evalgauge/warehouse/` (DuckDB) | ✅ |
+| Transform | `dbt/` (staging → marts → metrics) | ✅ core models |
 | Presentation | `dashboard/` wired to real data | ⬜ |
 | Write-up | case study + **failure analysis** | ⬜ |
 
-**Next:** `warehouse/` — land `Event` + `GroundTruth` + `Detection` into DuckDB tables that
-map 1:1 onto dbt's `stg_events` / `stg_detections`.
+**Next:** licensed public-corpus ingestion and explicit run/version lineage. Intervention-effect
+modeling remains deferred until the warehouse contains a real run/variant dimension.
 
 ---
 
@@ -86,7 +86,7 @@ Reasoned assets → adversaries → attack surface → severity, *then* derived 
     param so a cheaper judge can be cost-tuned on the ambiguous band later.
   - `StubJudge`: deterministic offline stand-in so the pipeline runs with no API key.
     **Deliberately crude** — decodes encodings + reads context to show the *shape* of tier-2
-    reasoning; its accuracy is not Tripwire's real judge performance (that's `ClaudeJudge`).
+    reasoning; its accuracy is not EvalGauge's real judge performance (that's `ClaudeJudge`).
   - Verified the (stub) judge **rescues both tier-1 failure modes**: decodes a base64 attack
     tier-1 was blind to, and reads fiction/security-ed context to clear false positives tier-1
     fired at 0.85. Every verdict carries latency + cost (backs `mtr_tier_contribution`).
@@ -101,6 +101,64 @@ Reasoned assets → adversaries → attack surface → severity, *then* derived 
     NOT the real judge. The *wiring* and the *direction* (trade recall for a large FP cut) are
     real; true numbers await swapping in `ClaudeJudge`. Even the stub isn't perfect (missed 91
     escalated attacks — biased benign).
+
+### `warehouse/` — strict local measurement landing
+- **Three raw contracts remain separate:** `events` has only detector-visible fields;
+  `ground_truth` has provenance and labels; `detections` has scores, routing, verdict, latency, and
+  judge cost. `joined_results` is the first place truth and prediction meet, after commitment.
+- **DuckDB simulates Snowflake** as settled in `DECISIONS.md`. The raw tables map cleanly to future
+  dbt sources; ingestion contains no dashboard or metric logic.
+- **Immutable idempotency:** an identical replay is a no-op. Reusing an `event_id` for changed data
+  raises `ConflictError` instead of silently replacing measurement history.
+- **Integrity and atomicity:** foreign keys reject orphan truth/detections, checks reject invalid
+  values, whole-run ingestion is transactional, and strict reads expose missing join sides.
+- **One offline command:** `python -m evalgauge.offline --db data/evalgauge.duckdb --seed 42
+  --replace` generates, replays, detects with `StubJudge`, and lands all 1,800 eval records.
+- **Verification (2026-08-07):** 7 tests passed. A fresh smoke database had 1,800 rows in every raw
+  table and the joined view, zero missing references, and 581 stub-judge-routed events.
+- **Current limitation:** the database models one rebuildable run. IDs are sequential within that
+  run, latency is an execution-time observation, and there is no `run_id` or artifact-version
+  lineage yet. The CLI therefore requires explicit `--replace` to rebuild an existing output.
+- **Scope honesty:** this layer is necessary measurement plumbing, not the differentiator by itself.
+  The stronger evidence must come from dbt metric semantics and the later uncertainty, base-rate,
+  threshold, disagreement, and failure analyses.
+
+### `dbt/` — tested measurement semantics
+- **Blind lineage remains visible:** events, truth, and detections have separate one-to-one staging
+  views; `fct_classifications` is the first prediction/label join.
+- **Fact grain:** one row per evaluated event, assigned to exactly one of TP/FP/TN/FN. Reverse
+  completeness tests prevent inner joins from silently dropping missing truth or detections.
+- **Per-family performance:** catch rate groups by true evaluation family. Precision is not reported
+  by family because the detector predicts only attack/benign, not family.
+- **FP burden travels with catch rate:** family rows carry the evaluation-wide benign FP rate.
+  False-alarm share is explicitly labeled evaluation-mix, not production-base-rate evidence.
+- **Tier contribution is bounded by stored data:** outcomes, end-to-end latency, and judge cost are
+  grouped by deciding tier; total latency is not mislabeled as incremental judge latency.
+- **Verification (2026-08-17):** fresh 1,800-event run; 7 dbt views + 55 tests = **62/62 passed**.
+  Python suite: **7/7 passed**.
+- **Deferred honestly:** intervention effect requires run/variant metadata that does not exist yet.
+
+### Public-release hardening
+- The default offline command now runs the entire local measurement path through dbt; `--skip-dbt`
+  remains available for raw-only diagnostics.
+- The end-to-end pytest verifies detector blindness, raw completeness, fact row count, and the
+  per-family metric output in the resulting DuckDB file.
+- GitHub Actions runs the clean-environment test path on Python 3.11, and generated dbt state is
+  excluded from version control.
+- Local verification (2026-08-17): **7/7 pytest passed**, including an in-process 62/62 dbt build;
+  the standalone public-facing command also completed successfully.
+- The GitHub repository was renamed to `Jayu79/evalgauge`, and the local `origin` now points to it.
+  The remaining public-release blocker is choosing an explicit license.
+- **Naming migration (2026-08-17):** retired the conflicting Tripwire working name and adopted
+  **EvalGauge**. The old name collided with an established cybersecurity company and open-source
+  product, creating avoidable trademark, discovery, and reader-confusion risk. EvalGauge instead
+  names the actual value: measuring safeguard performance, false-positive burden, lineage, cost,
+  and regressions without implying that the harness itself provides protection. It also remains
+  accurate as the project expands beyond jailbreak detection into a provider-neutral eval harness.
+  Migrated the `evalgauge` Python namespace, console command, dbt project/profile/source
+  identifiers, environment variable, generated database name, filenames, and all continuity docs.
+  Clean editable installation exposed and fixed ambiguous setuptools package discovery. The renamed
+  test suite and CLI pass, and the GitHub repository and local remote now use the new name.
 
 ---
 

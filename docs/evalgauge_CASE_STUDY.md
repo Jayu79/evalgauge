@@ -1,4 +1,4 @@
-# Tripwire: building the data layer for jailbreak detection
+# EvalGauge: building the data layer for jailbreak detection
 
 > Outline / working draft. Each section below is a placeholder with the argument it needs to make. Prose gets written as the corresponding module lands, so the writing stays honest to what was actually built.
 
@@ -18,7 +18,7 @@ Open on the real problem, not the project. A safety team ships a new safeguard. 
 
 ## 2. Why aggregate accuracy is the wrong metric
 - Walk through a concrete case where 94% accuracy hides a fully-missed family.
-- Introduce the two metrics Tripwire actually reports: catch-rate-by-family, and false-positive burden on benign traffic.
+- Introduce the two metrics EvalGauge actually reports: catch-rate-by-family, and false-positive burden on benign traffic.
 - Tie the FP metric to mission: over-blocking real users is a trust failure, not a rounding error.
 
 ## 3. The data: real + synthetic, with provenance
@@ -44,7 +44,7 @@ Open on the real problem, not the project. A safety team ships a new safeguard. 
 
 ## 7. Honest failure analysis
 - The confusion matrix, unvarnished.
-- **What Tripwire misses, and why.** Name the families it's weak on. Name where the fast tier over-triggers. Name where the judge disagrees with ground truth and who's right.
+- **What EvalGauge misses, and why.** Name the families it's weak on. Name where the fast tier over-triggers. Name where the judge disagrees with ground truth and who's right.
 - This section is non-negotiable and gets equal weight to everything else. It's the difference between a demo and an artifact.
 
 ## 8. What I'd build next with real infrastructure

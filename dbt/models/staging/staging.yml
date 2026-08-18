@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: stg_events
+    description: Detector-visible event records, with no ground-truth fields.
+    columns:
+      - name: event_id
+        data_tests: [not_null, unique]
+
+  - name: stg_ground_truth
+    description: Held-aside evaluation labels and provenance.
+    columns:
+      - name: event_id
+        data_tests: [not_null, unique]
+      - name: evaluation_family
+        data_tests: [not_null]
+      - name: ground_truth_label
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [attack, benign]
+
+  - name: stg_detections
+    description: Blind detector outputs, routing, latency, and judge cost.
+    columns:
+      - name: event_id
+        data_tests: [not_null, unique]
+

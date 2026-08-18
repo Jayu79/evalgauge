@@ -9,7 +9,7 @@ Flow, per blind Event:
 The two thresholds are the tunable knob. Widen the gap → more prompts escalate → better
 detection at higher cost/latency; narrow it → cheaper and faster but more mistakes slip
 past tier-1 alone. Where they sit is a real operating-point choice, and the whole point of
-Tripwire is to measure catch rate AND false-positive burden *together* as you move them
+EvalGauge is to measure catch rate AND false-positive burden *together* as you move them
 (the Pareto sweep in the failure-analysis phase). Defaults here are grounded in the
 held-out score distributions, where hard negatives and disguised attacks overlap ~0.56–0.85.
 """

@@ -1,4 +1,4 @@
-# Tripwire Threat Model
+# EvalGauge Threat Model
 
 > This document reasons from **what we protect** → **who attacks it** → **how they attack**
 > → **what we therefore prioritize**. The jailbreak families (§3) are deliberately *not* the
@@ -10,7 +10,7 @@
 
 ## 0. Scope — what this system is and is not
 
-Tripwire is a **defensive measurement system**. It ingests inbound prompts, classifies whether
+EvalGauge is a **defensive measurement system**. It ingests inbound prompts, classifies whether
 each is a jailbreak attempt, and measures how well that classification works — per attack family,
 and at what cost to legitimate users.
 
@@ -19,7 +19,7 @@ data module produces *labeled examples for training and evaluation*, not attacks
 defeat production systems. This boundary is restated concretely in §6 and is enforced by design,
 not just by policy.
 
-This scope also bounds the *claims* Tripwire can make. It measures over **labeled data** (public
+This scope also bounds the *claims* EvalGauge can make. It measures over **labeled data** (public
 corpora + synthetic, where ground truth is known). It therefore reports precision/recall honestly
 as a *controlled measurement*, and makes no claim about catch rate on live, unlabeled production
 traffic — a limitation addressed directly in §7.
@@ -28,7 +28,7 @@ traffic — a limitation addressed directly in §7.
 
 ## 1. Assets — what we are protecting
 
-A threat is only as serious as the asset it endangers. Tripwire protects two assets, and they
+A threat is only as serious as the asset it endangers. EvalGauge protects two assets, and they
 pull in opposite directions — which is the central tension of the whole system.
 
 ### Asset A: the harmful capability behind the door
@@ -42,12 +42,12 @@ bad (see the severity model, §4).
 Over-blocking real users is not a rounding error — it is a distinct safety and product failure.
 Every benign prompt wrongly blocked (a **false positive**) erodes trust, pushes real users toward
 less-safe alternatives, and — at production base rates where ~99.9% of traffic is benign — can
-dwarf the true attacks caught. Protecting Asset B is why Tripwire never reports catch rate without
+dwarf the true attacks caught. Protecting Asset B is why EvalGauge never reports catch rate without
 false-positive burden beside it.
 
 **The tension:** maximizing protection of Asset A (catch every attack) directly damages Asset B
 (block more innocent users), and vice versa. There is no setting that maximizes both. The detector
-is a *choice of where to sit on that trade-off*, and Tripwire exists to make that choice visible
+is a *choice of where to sit on that trade-off*, and EvalGauge exists to make that choice visible
 and measurable.
 
 ---
@@ -131,7 +131,7 @@ five-alarm miss and a nuisance miss into one comfortable-looking number. The per
 and the `mtr_performance_by_family` model) exists so severity and catch rate can be read *together*,
 never blended away.
 
-> Scope note: Tripwire assigns *relative* severity tiers to families for prioritization. It does not
+> Scope note: EvalGauge assigns *relative* severity tiers to families for prioritization. It does not
 > publish absolute harm content or capability details — consistent with the boundary in §6.
 
 ---
@@ -143,14 +143,14 @@ it is deployed, that assumption breaks: the adaptive adversary (§2) probes it, 
 blind, and **moves the attack distribution toward those blind spots.** A "90% catch rate" is a
 snapshot of a fight whose terms are changing underneath you.
 
-Two structural consequences fall out of this, and both shape Tripwire's design:
+Two structural consequences fall out of this, and both shape EvalGauge's design:
 
 1. **The detector must be the *updatable* layer.** Training-time refusals are frozen for months;
    the whole reason a detection layer exists is that it can ship a fix in days. A detector you
    cannot rapidly re-measure and re-tune is not fit for an adaptive threat.
 2. **Measurement must be longitudinal and per-family, not a one-time headline.** What matters is not
    today's number but *drift*: which family's catch rate is sliding, which encoding started slipping
-   through last week. This is why Tripwire is built as a *pipeline that keeps measuring*, not a
+   through last week. This is why EvalGauge is built as a *pipeline that keeps measuring*, not a
    notebook that reports one score.
 
 The honest conclusion: **you do not "solve" adaptive jailbreaking — you manage a moving trade-off.**
@@ -160,7 +160,7 @@ cost of doing so.
 
 There is also a reflexive effect worth naming: **the detector's existence changes attacker
 behavior.** Publishing that you flag base64 doesn't reduce attacks — it reallocates them to ROT13.
-A serious threat model assumes the adversary knows the defense exists and designs around it. Tripwire
+A serious threat model assumes the adversary knows the defense exists and designs around it. EvalGauge
 does not assume security-through-obscurity.
 
 ---
@@ -173,7 +173,7 @@ The detection/generation line is not a disclaimer bolted on top; it is a set of 
   not wired into any feedback loop that scores candidate prompts against a live target and mutates
   them to increase success. That optimization loop is exactly what turns "example generation" into
   "attack generation," and it is absent by construction.
-- **No live-target optimization.** Tripwire measures a detector over a *fixed labeled corpus*. It
+- **No live-target optimization.** EvalGauge measures a detector over a *fixed labeled corpus*. It
   never uses a production system's responses as a fitness signal to breed stronger jailbreaks.
 - **Prompts are handled as data, not published as recipes.** Events are identified by hash where
   possible; severity is expressed as *relative tiers* (§4), not as reproducible harmful content or
@@ -181,7 +181,7 @@ The detection/generation line is not a disclaimer bolted on top; it is a set of 
 - **The frontier family (§3, Group III) is bounded to novelty of *technique structure*,** used to
   stress-test the detector's generalization — not to novelty of *harmful payload*.
 
-This is the boundary that lets Tripwire be a credible *safety* artifact rather than a dual-use one:
+This is the boundary that lets EvalGauge be a credible *safety* artifact rather than a dual-use one:
 it strengthens the defender's measurement without handing the attacker a better weapon.
 
 ---
@@ -204,5 +204,5 @@ a row here, it doesn't belong.
 
 **The test of this whole document:** point at any number the dashboard shows, and you should be able
 to walk it back up this table to a decision about an asset or an adversary. A metric with no such
-ancestor is decoration; a threat-model claim with no metric is a slogan. Tripwire is built so neither
+ancestor is decoration; a threat-model claim with no metric is a slogan. EvalGauge is built so neither
 exists.
