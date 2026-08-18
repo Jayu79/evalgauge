@@ -21,8 +21,10 @@ Legend: ✅ done · 🟡 in progress · ⬜ not started
 | Presentation | `dashboard/` wired to real data | ⬜ |
 | Write-up | case study + **failure analysis** | ⬜ |
 
-**Next:** licensed public-corpus ingestion and explicit run/version lineage. Intervention-effect
-modeling remains deferred until the warehouse contains a real run/variant dimension.
+**Next:** optionally tag the published foundation as `v0.1.0`, then design and implement explicit
+run/version lineage and append-only multi-run storage. Licensed public-corpus ingestion remains the
+Month 1 data gap. Intervention-effect modeling remains deferred until the warehouse contains a real
+run/variant dimension.
 
 ---
 
@@ -147,8 +149,9 @@ Reasoned assets → adversaries → attack surface → severity, *then* derived 
   excluded from version control.
 - Local verification (2026-08-17): **7/7 pytest passed**, including an in-process 62/62 dbt build;
   the standalone public-facing command also completed successfully.
-- Hosted verification (2026-08-17): GitHub Actions CI passed on Python 3.11 for commit `043c258`
-  after installing the project from a clean checkout and running the complete offline test path.
+- Hosted verification (2026-08-17): GitHub Actions CI passed on Python 3.11 after the history rewrite
+  and again for licensing commit `297cd1a`, installing the project from a clean checkout and running
+  the complete offline test path.
 - The GitHub repository was renamed to `Jayu79/evalgauge`, and the local `origin` now points to it.
   The repository's original code and documentation are now licensed under Apache-2.0. External
   datasets and third-party materials remain under their own terms and are tracked separately.

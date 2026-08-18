@@ -88,6 +88,10 @@ compute it at production weights, and it's exactly what a single accuracy figure
 
 Full detail and rationale: [`BUILDLOG.md`](BUILDLOG.md).
 
+**Next milestone:** versioned, append-only evaluation runs with artifact lineage and
+baseline/candidate comparison. Dashboard wiring and paid real-judge evaluation remain deferred until
+outputs can be reproduced and compared.
+
 ---
 
 ## What's built so far — and what it honestly shows
