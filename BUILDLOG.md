@@ -147,6 +147,8 @@ Reasoned assets → adversaries → attack surface → severity, *then* derived 
   excluded from version control.
 - Local verification (2026-08-17): **7/7 pytest passed**, including an in-process 62/62 dbt build;
   the standalone public-facing command also completed successfully.
+- Hosted verification (2026-08-17): GitHub Actions CI passed on Python 3.11 for commit `043c258`
+  after installing the project from a clean checkout and running the complete offline test path.
 - The GitHub repository was renamed to `Jayu79/evalgauge`, and the local `origin` now points to it.
   The remaining public-release blocker is choosing an explicit license.
 - **Naming migration (2026-08-17):** retired the conflicting Tripwire working name and adopted
