@@ -21,10 +21,11 @@ Legend: ✅ done · 🟡 in progress · ⬜ not started
 | Presentation | `dashboard/` wired to real data | ⬜ |
 | Write-up | case study + **failure analysis** | ⬜ |
 
-**Next:** optionally tag the published foundation as `v0.1.0`, then design and implement explicit
-run/version lineage and append-only multi-run storage. Licensed public-corpus ingestion remains the
-Month 1 data gap. Intervention-effect modeling remains deferred until the warehouse contains a real
-run/variant dimension.
+**Foundation:** annotated tag `v0.1.0` points to commit `481c1f9`.
+
+**Next:** design and implement explicit run/version lineage and append-only multi-run storage.
+Licensed public-corpus ingestion remains the Month 1 data gap. Intervention-effect modeling remains
+deferred until the warehouse contains a real run/variant dimension.
 
 ---
 
