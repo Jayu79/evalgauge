@@ -1,175 +1,226 @@
 # EvalGauge
 
-**A data pipeline that catches jailbreak attempts and measures what your safeguards actually stop.**
+[![CI](https://github.com/Jayu79/evalgauge/actions/workflows/ci.yml/badge.svg)](https://github.com/Jayu79/evalgauge/actions/workflows/ci.yml)
+[![Foundation tag](https://img.shields.io/badge/tag-v0.1.0-2563eb)](https://github.com/Jayu79/evalgauge/tree/v0.1.0)
+[![License](https://img.shields.io/badge/license-Apache--2.0-0f766e)](LICENSE)
 
-EvalGauge treats adversarial-prompt detection as a production **data-engineering and measurement**
-problem, not an ML demo. It ingests a stream of inbound prompts, classifies jailbreak attempts
-through a two-tier detector, lands the results in a warehouse, and models them into the metrics a
-safety team actually needs: *is this safeguard working, and what is it costing legitimate users?*
+**A reproducible evaluation pipeline for measuring jailbreak safeguards, including what they miss
+and what they cost legitimate users.**
 
-The interesting part is not the classifier. It's the lineage, the measurement, and the honesty
-about what the system misses.
+EvalGauge treats adversarial-prompt detection as a production data-engineering and measurement
+problem—not a classifier demo and not a runtime security product. It replays labeled prompts through
+a detector-blind event path, commits two-tier predictions, preserves provenance and execution
+metadata in DuckDB, and models the results with dbt.
 
-> **Status: active build.** The local measurement path now runs end-to-end through DuckDB. See [`BUILDLOG.md`](BUILDLOG.md) for the running decision log and
-> [`docs/threat_model.md`](docs/threat_model.md) for the reasoning that drives every design choice.
-> The approved expansion into a complete, provider-neutral safeguard-eval harness is defined in
-> [`docs/eval_harness_scope.md`](docs/eval_harness_scope.md).
+The central rule is simple:
 
----
+> **Never report catch rate without false-positive burden beside it.**
+
+## Status
+
+`v0.1.0` is the published measurement-backbone release. It includes:
+
+- reproducible synthetic train/evaluation corpora with held-out templates;
+- a detector-blind replay stream;
+- a TF-IDF/logistic-regression fast tier and an ambiguous-band judge protocol;
+- `StubJudge` for deterministic offline execution and a `ClaudeJudge` adapter;
+- strict DuckDB ingestion for events, held-aside ground truth, and detections;
+- dbt staging, classification facts, and per-family, false-positive, and tier metrics;
+- Python and dbt tests running in GitHub Actions; and
+- Apache-2.0 licensing with explicit third-party-material tracking.
+
+The reproducible release path uses **`StubJudge`**. The Claude adapter exists, but the project does
+not yet claim real Claude or OpenAI evaluation quality.
+
+## Quickstart
+
+Requires Python 3.9 or newer.
+
+```bash
+git clone https://github.com/Jayu79/evalgauge.git
+cd evalgauge
+python3 -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/python -m evalgauge.offline \
+  --db data/evalgauge.duckdb \
+  --seed 42 \
+  --replace
+```
+
+The command generates disjoint-template corpora, replays 1,800 evaluation events, runs both detector
+tiers with `StubJudge`, lands the raw records in DuckDB, and builds and tests the dbt models.
+
+Expected terminal summary:
+
+```text
+events=1800 ground_truth=1800 detections=1800 joined_results=1800
+```
+
+Run the complete test suite separately with:
+
+```bash
+.venv/bin/python -m pytest -q
+```
+
+The current suite contains 7 Python tests. The end-to-end test also runs 7 dbt models and 55 dbt
+data tests: 62 dbt operations in total.
+
+## Current architecture
+
+```text
+synthetic corpus
+      |
+      v
+detector-blind replay
+      |
+      v
+two-tier detector
+(fast tier + StubJudge)
+      |
+      v
+DuckDB raw contracts
+(events | ground_truth | detections)
+      |
+      v
+dbt staging -> classification fact -> measurement metrics
+```
+
+| Layer | Current implementation | Responsibility |
+|---|---|---|
+| Data | Reproducible synthetic generator | Labeled prompts, held-out templates, full provenance |
+| Ingestion | In-memory bus and replay producer | Timestamped events with labels structurally removed |
+| Detection | TF-IDF + logistic regression, then judge protocol | Fast decisions, ambiguous-band escalation, latency and cost capture |
+| Warehouse | DuckDB | Separate raw contracts, constraints, immutable/idempotent ingestion |
+| Transform | dbt | Classification outcomes, family catch rate, FP burden, tier contribution |
+| Presentation | React mock only | Illustrative design; not connected to measured outputs |
+
+Public-corpus ingestion, append-only multi-run storage, baseline comparison, regression gates, a
+wired dashboard, and paid real-judge evaluation are planned—not part of `v0.1.0`.
 
 ## Why this exists
 
-Most jailbreak-detection projects stop at *"we got 94% accuracy on a held-out set."* That number is
-close to meaningless to a team running safeguards in production, because it hides the two things
-that matter:
+A single aggregate accuracy score hides the two questions a safeguard owner needs answered:
 
-1. **Which attack families slip through** — an aggregate score averages over a threat model instead
-   of exposing it. 94% can mean 99% on five easy families and near-0% on the one that matters.
-2. **The false-positive burden on real users** — over-blocking benign traffic is itself a safety and
-   trust failure, not a rounding error.
+1. **Which attack families slip through?** Aggregate performance can average away a catastrophic
+   family-level failure.
+2. **How many legitimate users are blocked?** Over-blocking benign traffic is itself a safety and
+   trust failure.
 
-EvalGauge surfaces both, with per-family breakdowns, a benign-traffic control group, and a
-before/after view that simulates switching a mitigation on and measures its real effect.
+EvalGauge therefore reports attack performance by true evaluation family and carries the
+evaluation-wide benign false-positive rate beside it.
 
-**The one rule:** never report catch rate without false-positive burden beside it.
+### Why base rates matter
 
----
+Consider an illustrative detector with 80% catch rate and 5% false-positive rate:
 
-## The measurement thesis (a worked example)
-
-A concrete result from the build — the reason FP burden is co-reported everywhere:
-
-Take a perfectly ordinary detector: **80% catch rate, 5% false-positive rate.** On a balanced test
-it looks fine. But production traffic is ~99.9% benign, so re-weighting to real base rates:
-
-| Metric | On a balanced corpus | At production base rates |
-|---|---|---|
+| Metric | Balanced corpus | 0.1% attack prevalence |
+|---|---:|---:|
 | Catch rate | 80% | 80% |
-| FP rate | 5% | 5% |
-| **Share of blocked traffic that was a false alarm** | **5.9%** | **98.4%** |
+| False-positive rate | 5% | 5% |
+| Share of blocked traffic that is benign | 5.9% | 98.4% |
 
-Same detector. The 5% false-positive rate, multiplied across a million benign prompts, buries the
-true catches — **98 of every 100 blocks are innocent users.** That number is invisible unless you
-compute it at production weights, and it's exactly what a single accuracy figure launders away.
+The detector has not changed. The traffic mix has. At the production-like base rate, approximately
+98 of every 100 blocked prompts are false alarms. This is why catch rate and false-positive burden
+must travel together.
 
----
+This table is an analytical example, not a claim about observed production traffic. Production
+base-rate weighting is not implemented in `v0.1.0`.
 
-## Architecture
+## Measurement integrity
 
-```
-  public corpora ─┐
-                  ├─►  event stream  ─►  two-tier detector  ─►  warehouse  ─►  dbt models  ─►  dashboard
- synthetic gen  ─┘   (replay producer)  (fast pass + judge)    (DuckDB)     (metrics/lineage)  (live view)
-```
+### Detector-blind execution
 
-| Layer | Tech | Job |
-|-------|------|-----|
-| Data | synthetic generator (+ public corpora) | labeled prompts with full provenance |
-| Ingestion | replay producer over a pub/sub-style bus | timestamped, **detector-blind** event stream |
-| Detection | TF-IDF + logistic regression, then provider-neutral LLM judge | two-tier classification with cost/latency awareness; Claude built, OpenAI planned |
-| Warehouse | DuckDB (simulating Snowflake) | raw detections + provenance |
-| Transform | dbt | catch rate by family, FP burden, tier contribution |
-| Presentation | dashboard | live stream, catch rate, FP rate, intervention toggle |
+Each labeled prompt is split into two different types:
 
----
+- `Event`: event ID, timestamp, prompt hash, and prompt text;
+- `GroundTruth`: family, label, synthetic/source provenance, and objective.
 
-## Build status
+Only `Event` reaches the detector. Ground truth is held aside and joins the prediction only after the
+detector has committed a `Detection`. Tests assert that detector inputs have no label or family
+attributes.
 
-| Layer | Module | Status |
-|---|---|---|
-| Design | `docs/threat_model.md` | ✅ done |
-| Data | `evalgauge/generate/` | ✅ done |
-| Ingestion | `evalgauge/stream/` | ✅ done |
-| Detection | `evalgauge/detect/` | ✅ two-tier detector wired; offline stub + real judge adapter |
-| Warehouse | `evalgauge/warehouse/` | ✅ DuckDB raw tables + strict post-detection join |
-| Transform | `dbt/` | ✅ staging, classification fact, family/FP/tier metrics |
-| Presentation | `dashboard/` (wired to real data) | ⬜ planned |
-| Write-up | case study + failure analysis | ⬜ planned |
+### Strict warehouse contracts
 
-Full detail and rationale: [`BUILDLOG.md`](BUILDLOG.md).
+The raw DuckDB tables preserve:
 
-**Next milestone:** versioned, append-only evaluation runs with artifact lineage and
-baseline/candidate comparison. Dashboard wiring and paid real-judge evaluation remain deferred until
-outputs can be reproduced and compared.
+- event identity, arrival time, prompt hash, and text;
+- label, attack family, provenance, and synthetic/source metadata;
+- tier-1 score, band, flag, and escalation decision;
+- judge verdict, model, rationale, latency, and cost where available; and
+- final flag and the tier that made the decision.
 
----
+Identical replays are no-ops. Reusing an event ID with different content raises a conflict. Foreign
+keys reject orphan truth or detections, invalid values fail constraints, and whole-run ingestion is
+transactional.
 
-## What's built so far — and what it honestly shows
+### Honest evaluation split
 
-- **Threat model that derives the architecture.** Two assets in tension (the capability behind the
-  door vs. user trust), three adversary tiers ranked by *capability* (recognizable vs. novel
-  attacks) — which is what makes the two-tier design a derivation, not a fashion. See
-  [`docs/threat_model.md`](docs/threat_model.md).
-- **Synthetic data with provenance, stratified for measurement.** Attacks wrap a *benign stand-in*
-  objective (genuine jailbreak shapes, zero harmful payload). The corpus deliberately over-samples
-  attacks for statistical power, then re-weights to production base rates downstream — one dataset,
-  two weightings.
-- **A detector-blind stream.** Each prompt is split into a blind `Event` (what the detector sees)
-  and a held-aside answer key (joined only later to score) — so label leakage is *unrepresentable
-  in the type*, not merely discouraged.
-- **An honestly-evaluated fast tier.** Naive evaluation scored ~100% — a red flag, not a win. It
-  turned out we were measuring *memorization* (train and test shared templates). A held-out-template
-  split exposed the real behavior: the fast tier false-positives on ~100% of *unseen* benign prompts
-  that wear attack-flavored surface, and there's a genuine ambiguous middle band. Measuring honestly
-  and defending against an adaptive attacker turn out to be the same requirement.
-- **A constitutional judge for the ambiguous middle.** Tier 2 is Claude classifying against an
-  explicit, auditable policy — verified to rescue both of tier 1's failure modes (it decodes a
-  disguised attack tier 1 was blind to, *and* reads context to clear false positives tier 1 fired at
-  0.85). Pluggable interface with an offline stub so the pipeline runs without an API key.
-- **A strict DuckDB landing layer.** `events`, `ground_truth`, and `detections` stay separate until
-  the post-detection `joined_results` view. Foreign keys reject orphan truth/predictions, immutable
-  duplicate records are idempotent, conflicting duplicates fail loudly, and run ingestion is
-  transactional. Provenance, arrival time, tier routing, scores, latency, and judge cost are kept.
+An early random split produced nearly perfect fast-tier performance because train and evaluation
+records shared generation templates. That measured memorization, not generalization. `v0.1.0` splits
+by template, forcing evaluation prompts to use structures unseen during training.
 
-## Reproducible offline run
+That failure—and the correction—is more important than the naive score. See
+[BUILDLOG.md](BUILDLOG.md) for the full decision history.
 
-From `EvalGauge/`:
+## Verified release behavior
 
-```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -e '.[dev]'
-.venv/bin/python -m evalgauge.offline --db data/evalgauge.duckdb --seed 42 --replace
-```
+The offline release run verifies the shape and integrity of the system:
 
-This generates disjoint-template train/eval corpora, replays 1,800 evaluation events through the
-blind stream, runs both detector tiers with `StubJudge`, lands a complete DuckDB database, and runs
-the tested dbt fact and metric models.
-`--replace` explicitly permits rebuilding the output; without it, an existing database is preserved.
-Stub results verify pipeline wiring, not real Claude evaluation quality.
+- 1,800 events, 1,800 truth records, 1,800 detections, and 1,800 joined results;
+- no missing event references;
+- 1,219 fast-tier decisions and 581 stub-judge decisions;
+- 7/7 Python tests passing;
+- 62/62 dbt models and tests passing; and
+- the same test path passing from a clean GitHub Actions environment.
 
-The current database represents one rebuildable run: sequential event IDs are not namespaced by a
-`run_id`, and runtime latency can vary between executions. Multi-run lineage and explicit dataset,
-detector, and policy versioning are later work; this raw warehouse is intentionally foundational,
-not the project's final analytical contribution.
+These numbers validate pipeline wiring and the deterministic stub's behavior. They are not evidence
+of real LLM-judge quality or live production safeguard performance.
 
----
+## Known limitations
 
-## Scope: defensive measurement, not attack generation
+- The included corpus is synthetic; no external public dataset is redistributed yet.
+- The database represents one rebuildable run. There is no `run_id`, artifact manifest, or
+  append-only run history.
+- Sequential event IDs are scoped only to that single run.
+- Runtime latency can vary between executions.
+- `StubJudge` is deliberately crude and must not be treated as a model-quality result.
+- `ClaudeJudge` has not been used to produce the published release measurements.
+- There is no OpenAI judge adapter yet.
+- Production-base-rate weighting, uncertainty, calibration, threshold sweeps, and judge
+  disagreement analysis remain future work.
+- The dashboard is an unwired mock with illustrative numbers.
 
-EvalGauge **classifies and measures** adversarial prompts as data. It does **not** generate novel
-working jailbreaks. The synthetic module produces *labeled examples for evaluation* whose "harmful"
-slot is a benign stand-in (e.g. "reveal your system prompt") — a real jailbreak *technique* with no
-dangerous payload. That boundary is enforced in the design, not just stated in a README.
+## Next milestone
 
----
+The next milestone is versioned, append-only evaluation:
 
-## Repo layout
+1. define `run_id` and immutable run lifecycle states;
+2. record dataset, detector, judge/policy, threshold, configuration, and Git versions;
+3. make event and result identity run-aware;
+4. support baseline/candidate comparison and regression gates; and
+5. add one properly licensed public corpus.
 
-```
+Dashboard wiring and paid real-judge evaluation remain deferred until their outputs can be
+reproduced and compared.
+
+The approved longer-term scope is documented in
+[docs/eval_harness_scope.md](docs/eval_harness_scope.md). The threat-model derivation is in
+[docs/threat_model.md](docs/threat_model.md).
+
+## Repository layout
+
+```text
 evalgauge/
-  generate/    synthetic labeled-prompt generator (schema, families, corpus)
-  stream/      blind event replay (event model, bus, producer)
-  detect/      two-tier detector (fast classifier, constitutional judge)
-  warehouse/   DuckDB schema, idempotent ingestion, post-detection join
+  generate/    synthetic labeled-prompt generator
+  stream/      blind event replay and bus protocol
+  detect/      fast classifier, judge protocol, and two-tier routing
+  warehouse/   DuckDB schema, ingestion, and post-detection join
   offline.py   reproducible local pipeline command
-tests/         warehouse contracts and end-to-end blindness/coverage tests
-docs/          threat model, case-study outline
-dbt/           tested staging, classification fact, and measurement metrics
-dashboard/     dashboard mock (to be wired to real data)
-BUILDLOG.md    status + decision log
+tests/         warehouse contracts and end-to-end tests
+dbt/           staging, classification fact, metrics, and data tests
+docs/          threat model, eval-harness scope, and case-study outline
+dashboard/     unwired React mock
 ```
-
----
 
 ## License
 
@@ -180,10 +231,5 @@ EvalGauge's original code and documentation are licensed under the
 
 External datasets and third-party materials are not automatically covered by EvalGauge's license.
 They retain their original licenses and attribution requirements, recorded in
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). No external dataset is currently redistributed
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). No external dataset is currently redistributed
 with this repository.
-
----
-
-*Numbers shown in the dashboard mock are illustrative. This is a controlled measurement over
-labeled data — explicitly not a claim about live, unlabeled production traffic.*
