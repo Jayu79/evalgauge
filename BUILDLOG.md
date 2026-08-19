@@ -26,6 +26,11 @@ Legend: ✅ done · 🟡 in progress · ⬜ not started
 **Next:** baseline/candidate comparison and regression gates, followed by reliable failure/resume
 semantics. Licensed public-corpus ingestion remains the Month 1 data gap.
 
+**Standing build-completion checkpoint:** after each meaningful feature, review real implementation
+friction for a credible upstream OSS contribution and update `../PROGRESS.md`. Submit early when a
+strong candidate appears; maintainer review and merge may take roughly three months. Do not invent
+a PR merely to satisfy the checkpoint—record “no credible opportunity” when that is the honest result.
+
 ---
 
 ## Decision log
