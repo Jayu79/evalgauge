@@ -4,10 +4,52 @@ sources:
   - name: evalgauge_raw
     schema: main
     tables:
+      - name: runs
+        columns:
+          - name: run_id
+            data_tests: [not_null, unique]
+          - name: status
+            data_tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: [completed, failed]
+          - name: started_at
+            data_tests: [not_null]
+          - name: completed_at
+            data_tests: [not_null]
+          - name: dataset_name
+            data_tests: [not_null]
+          - name: dataset_version
+            data_tests: [not_null]
+          - name: dataset_hash
+            data_tests: [not_null]
+          - name: detector_version
+            data_tests: [not_null]
+          - name: judge_model
+            data_tests: [not_null]
+          - name: policy_version
+            data_tests: [not_null]
+          - name: configuration_hash
+            data_tests: [not_null]
+          - name: low_threshold
+            data_tests: [not_null]
+          - name: high_threshold
+            data_tests: [not_null]
+          - name: git_sha
+            data_tests: [not_null]
+
       - name: events
         columns:
+          - name: run_id
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('evalgauge_raw', 'runs')
+                    field: run_id
           - name: event_id
-            data_tests: [not_null, unique]
+            data_tests: [not_null]
           - name: ts
             data_tests: [not_null]
           - name: prompt_hash
@@ -17,14 +59,10 @@ sources:
 
       - name: ground_truth
         columns:
+          - name: run_id
+            data_tests: [not_null]
           - name: event_id
-            data_tests:
-              - not_null
-              - unique
-              - relationships:
-                  arguments:
-                    to: source('evalgauge_raw', 'events')
-                    field: event_id
+            data_tests: [not_null]
           - name: family
             data_tests: [not_null]
           - name: label
@@ -42,14 +80,10 @@ sources:
 
       - name: detections
         columns:
+          - name: run_id
+            data_tests: [not_null]
           - name: event_id
-            data_tests:
-              - not_null
-              - unique
-              - relationships:
-                  arguments:
-                    to: source('evalgauge_raw', 'events')
-                    field: event_id
+            data_tests: [not_null]
           - name: tier1_score
             data_tests: [not_null]
           - name: tier1_band
@@ -70,4 +104,3 @@ sources:
             data_tests: [not_null]
           - name: judge_cost_usd
             data_tests: [not_null]
-

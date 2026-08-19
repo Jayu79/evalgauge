@@ -53,8 +53,11 @@ tiers with `StubJudge`, lands the raw records in DuckDB, and builds and tests th
 Expected terminal summary:
 
 ```text
-events=1800 ground_truth=1800 detections=1800 joined_results=1800
+runs=1 events=1800 ground_truth=1800 detections=1800 joined_results=1800
 ```
+
+Subsequent commands append immutable runs by default. Use `--run-id` for a stable name and
+`--baseline-run-id` to record comparison lineage; `--replace` intentionally resets the database.
 
 Run the complete test suite separately with:
 
@@ -62,8 +65,8 @@ Run the complete test suite separately with:
 .venv/bin/python -m pytest -q
 ```
 
-The current suite contains 7 Python tests. The end-to-end test also runs 7 dbt models and 55 dbt
-data tests: 62 dbt operations in total.
+The current suite contains 12 Python tests. The end-to-end test also runs 8 dbt models and 78 dbt
+data tests: 86 dbt operations in total.
 
 ## Current architecture
 
@@ -78,8 +81,8 @@ two-tier detector
 (fast tier + StubJudge)
       |
       v
-DuckDB raw contracts
-(events | ground_truth | detections)
+immutable run manifest + DuckDB raw contracts
+(runs | events | ground_truth | detections)
       |
       v
 dbt staging -> classification fact -> measurement metrics
@@ -90,12 +93,14 @@ dbt staging -> classification fact -> measurement metrics
 | Data | Reproducible synthetic generator | Labeled prompts, held-out templates, full provenance |
 | Ingestion | In-memory bus and replay producer | Timestamped events with labels structurally removed |
 | Detection | TF-IDF + logistic regression, then judge protocol | Fast decisions, ambiguous-band escalation, latency and cost capture |
-| Warehouse | DuckDB | Separate raw contracts, constraints, immutable/idempotent ingestion |
+| Run lineage | Immutable `EvalRun` manifest | Dataset/config hashes, artifact versions, thresholds, Git SHA, and baseline identity |
+| Warehouse | DuckDB | Run-aware raw contracts, constraints, immutable/idempotent ingestion |
 | Transform | dbt | Classification outcomes, family catch rate, FP burden, tier contribution |
 | Presentation | React mock only | Illustrative design; not connected to measured outputs |
 
-Public-corpus ingestion, append-only multi-run storage, baseline comparison, regression gates, a
-wired dashboard, and paid real-judge evaluation are planned—not part of `v0.1.0`.
+Public-corpus ingestion, baseline comparison, regression gates, a wired dashboard, and paid
+real-judge evaluation are planned—not part of `v0.1.0`. Append-only multi-run storage was added
+after that foundation release.
 
 ## Why this exists
 
@@ -149,9 +154,10 @@ The raw DuckDB tables preserve:
 - judge verdict, model, rationale, latency, and cost where available; and
 - final flag and the tier that made the decision.
 
-Identical replays are no-ops. Reusing an event ID with different content raises a conflict. Foreign
-keys reject orphan truth or detections, invalid values fail constraints, and whole-run ingestion is
-transactional.
+Within a run, identical replays are no-ops and changed content under the same event ID raises a
+conflict. The same event ID may safely recur in another run. Foreign keys reject orphan truth or
+detections, invalid values fail constraints, baseline references must exist, and whole-run
+ingestion is transactional.
 
 ### Honest evaluation split
 
@@ -169,8 +175,8 @@ The offline release run verifies the shape and integrity of the system:
 - 1,800 events, 1,800 truth records, 1,800 detections, and 1,800 joined results;
 - no missing event references;
 - 1,219 fast-tier decisions and 581 stub-judge decisions;
-- 7/7 Python tests passing;
-- 62/62 dbt models and tests passing; and
+- 12/12 Python tests passing;
+- 86/86 dbt models and tests passing; and
 - the same test path passing from a clean GitHub Actions environment.
 
 These numbers validate pipeline wiring and the deterministic stub's behavior. They are not evidence
@@ -179,9 +185,8 @@ of real LLM-judge quality or live production safeguard performance.
 ## Known limitations
 
 - The included corpus is synthetic; no external public dataset is redistributed yet.
-- The database represents one rebuildable run. There is no `run_id`, artifact manifest, or
-  append-only run history.
-- Sequential event IDs are scoped only to that single run.
+- Run manifests currently record completed executions; failed/partial lifecycle transitions and
+  resumable execution are not implemented.
 - Runtime latency can vary between executions.
 - `StubJudge` is deliberately crude and must not be treated as a model-quality result.
 - `ClaudeJudge` has not been used to produce the published release measurements.
@@ -192,13 +197,12 @@ of real LLM-judge quality or live production safeguard performance.
 
 ## Next milestone
 
-The next milestone is versioned, append-only evaluation:
+The next milestone is comparison and reliable execution:
 
-1. define `run_id` and immutable run lifecycle states;
-2. record dataset, detector, judge/policy, threshold, configuration, and Git versions;
-3. make event and result identity run-aware;
-4. support baseline/candidate comparison and regression gates; and
-5. add one properly licensed public corpus.
+1. calculate paired baseline/candidate deltas from the stored run lineage;
+2. add configurable regression gates and a deterministic CI evaluation suite;
+3. add failure accounting, bounded retries, budgets, and resume semantics; and
+4. add one properly licensed public corpus.
 
 Dashboard wiring and paid real-judge evaluation remain deferred until their outputs can be
 reproduced and compared.

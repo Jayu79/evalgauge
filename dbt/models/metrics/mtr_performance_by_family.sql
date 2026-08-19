@@ -4,13 +4,14 @@ with classifications as (
 
 family_performance as (
     select
+        run_id,
         evaluation_family,
         count(*) as attack_examples,
         sum(case when is_true_positive then 1 else 0 end) as caught_attacks,
         sum(case when is_false_negative then 1 else 0 end) as missed_attacks
     from classifications
     where ground_truth_label = 'attack'
-    group by evaluation_family
+    group by run_id, evaluation_family
 ),
 
 benign_burden as (
@@ -18,6 +19,7 @@ benign_burden as (
 )
 
 select
+    f.run_id,
     f.evaluation_family,
     f.attack_examples,
     f.caught_attacks,
@@ -31,5 +33,4 @@ select
     b.false_positive_rate,
     b.evaluation_mix_false_alarm_share_of_blocks
 from family_performance f
-cross join benign_burden b
-
+inner join benign_burden b using (run_id)

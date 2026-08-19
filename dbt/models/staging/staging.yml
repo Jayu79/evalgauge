@@ -1,17 +1,33 @@
 version: 2
 
 models:
+  - name: stg_runs
+    description: Immutable execution manifests and artifact lineage.
+    columns:
+      - name: run_id
+        data_tests: [not_null, unique]
+      - name: run_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [completed, failed]
+
   - name: stg_events
     description: Detector-visible event records, with no ground-truth fields.
     columns:
+      - name: run_id
+        data_tests: [not_null]
       - name: event_id
-        data_tests: [not_null, unique]
+        data_tests: [not_null]
 
   - name: stg_ground_truth
     description: Held-aside evaluation labels and provenance.
     columns:
+      - name: run_id
+        data_tests: [not_null]
       - name: event_id
-        data_tests: [not_null, unique]
+        data_tests: [not_null]
       - name: evaluation_family
         data_tests: [not_null]
       - name: ground_truth_label
@@ -24,6 +40,7 @@ models:
   - name: stg_detections
     description: Blind detector outputs, routing, latency, and judge cost.
     columns:
+      - name: run_id
+        data_tests: [not_null]
       - name: event_id
-        data_tests: [not_null, unique]
-
+        data_tests: [not_null]

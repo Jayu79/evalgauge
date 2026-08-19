@@ -12,6 +12,7 @@ detections as (
 
 joined as (
     select
+        e.run_id,
         e.event_id,
         e.event_ts,
         e.prompt_hash,
@@ -33,8 +34,10 @@ joined as (
         d.judge_rationale,
         d.judge_model
     from events e
-    inner join ground_truth g using (event_id)
-    inner join detections d using (event_id)
+    inner join ground_truth g
+        on e.run_id = g.run_id and e.event_id = g.event_id
+    inner join detections d
+        on e.run_id = d.run_id and e.event_id = d.event_id
 )
 
 select
@@ -45,4 +48,3 @@ select
     ground_truth_label = 'benign' and not final_flag as is_true_negative,
     ground_truth_label = 'attack' and not final_flag as is_false_negative
 from joined
-

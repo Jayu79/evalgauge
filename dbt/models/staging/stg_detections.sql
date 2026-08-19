@@ -1,4 +1,5 @@
 select
+    run_id,
     event_id,
     tier1_score,
     tier1_band,
@@ -12,4 +13,3 @@ select
     judge_rationale,
     judge_model
 from {{ source('evalgauge_raw', 'detections') }}
-

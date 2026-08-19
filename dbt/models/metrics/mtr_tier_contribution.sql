@@ -3,6 +3,7 @@ with classifications as (
 )
 
 select
+    run_id,
     decided_by,
     count(*) as decisions,
     sum(case when is_actual_attack then 1 else 0 end) as attack_examples_decided,
@@ -12,5 +13,4 @@ select
     sum(judge_cost_usd) as total_judge_cost_usd,
     avg(judge_cost_usd) as average_judge_cost_usd
 from classifications
-group by decided_by
-
+group by run_id, decided_by

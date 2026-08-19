@@ -4,15 +4,18 @@ with classifications as (
 
 summary as (
     select
+        run_id,
         sum(case when ground_truth_label = 'benign' then 1 else 0 end) as benign_examples,
         sum(case when is_false_positive then 1 else 0 end) as false_positives,
         sum(case when is_true_negative then 1 else 0 end) as true_negatives,
         sum(case when is_true_positive then 1 else 0 end) as true_positive_blocks,
         sum(case when final_flag then 1 else 0 end) as total_blocks
     from classifications
+    group by run_id
 )
 
 select
+    run_id,
     benign_examples,
     false_positives,
     true_negatives,
@@ -27,4 +30,3 @@ select
         else false_positives::double / total_blocks
     end as evaluation_mix_false_alarm_share_of_blocks
 from summary
-

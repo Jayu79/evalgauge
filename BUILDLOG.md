@@ -23,9 +23,8 @@ Legend: ✅ done · 🟡 in progress · ⬜ not started
 
 **Foundation:** annotated tag `v0.1.0` points to commit `481c1f9`.
 
-**Next:** design and implement explicit run/version lineage and append-only multi-run storage.
-Licensed public-corpus ingestion remains the Month 1 data gap. Intervention-effect modeling remains
-deferred until the warehouse contains a real run/variant dimension.
+**Next:** baseline/candidate comparison and regression gates, followed by reliable failure/resume
+semantics. Licensed public-corpus ingestion remains the Month 1 data gap.
 
 ---
 
@@ -119,9 +118,14 @@ Reasoned assets → adversaries → attack surface → severity, *then* derived 
   --replace` generates, replays, detects with `StubJudge`, and lands all 1,800 eval records.
 - **Verification (2026-08-07):** 7 tests passed. A fresh smoke database had 1,800 rows in every raw
   table and the joined view, zero missing references, and 581 stub-judge-routed events.
-- **Current limitation:** the database models one rebuildable run. IDs are sequential within that
-  run, latency is an execution-time observation, and there is no `run_id` or artifact-version
-  lineage yet. The CLI therefore requires explicit `--replace` to rebuild an existing output.
+- **Run-aware identity (2026-08-18):** immutable manifests record dataset version/hash, detector and
+  judge-policy versions, thresholds, seed, Git SHA, status/timestamps, and optional baseline. Raw
+  identity is `(run_id, event_id)`, so repeated event IDs across executions cannot collide.
+- **Append-only execution:** the CLI appends by default; `--replace` is an explicit reset. Manifest
+  and raw writes are immutable/idempotent, baseline references are validated, and the entire run
+  lands atomically. `run_id` remains warehouse context and never enters detector inputs.
+- **Verification (2026-08-18):** **12/12 pytest passed**. A two-run baseline/candidate smoke stored
+  1,800 fact rows per run; all **8 models + 78 tests = 86/86 dbt operations** passed.
 - **Scope honesty:** this layer is necessary measurement plumbing, not the differentiator by itself.
   The stronger evidence must come from dbt metric semantics and the later uncertainty, base-rate,
   threshold, disagreement, and failure analyses.
