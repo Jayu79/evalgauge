@@ -12,3 +12,19 @@ models:
         data_tests: [not_null]
       - name: final_flag
         data_tests: [not_null]
+
+  - name: fct_case_comparisons
+    description: One paired baseline-versus-candidate outcome per candidate run and event.
+    columns:
+      - name: candidate_run_id
+        data_tests: [not_null]
+      - name: baseline_run_id
+        data_tests: [not_null]
+      - name: event_id
+        data_tests: [not_null]
+      - name: is_compatible
+        data_tests: [not_null]
+      - name: is_fixed
+        data_tests: [not_null]
+      - name: is_regressed
+        data_tests: [not_null]

@@ -59,14 +59,26 @@ runs=1 events=1800 ground_truth=1800 detections=1800 joined_results=1800
 Subsequent commands append immutable runs by default. Use `--run-id` for a stable name and
 `--baseline-run-id` to record comparison lineage; `--replace` intentionally resets the database.
 
+Compare a candidate with its declared baseline and apply configurable regression limits:
+
+```bash
+.venv/bin/evalgauge-compare \
+  --db data/evalgauge.duckdb \
+  --candidate-run-id candidate-run
+```
+
+The command emits machine-readable JSON and exits with status 2 when a failure limit is exceeded.
+Its default warning/failure limits exercise the policy mechanism; they are not validated production
+tolerances and should be configured for the decision being made.
+
 Run the complete test suite separately with:
 
 ```bash
 .venv/bin/python -m pytest -q
 ```
 
-The current suite contains 12 Python tests. The end-to-end test also runs 8 dbt models and 78 dbt
-data tests: 86 dbt operations in total.
+The current suite contains 19 Python tests. The end-to-end path runs 10 dbt models and 91 dbt data
+tests: 101 dbt operations in total.
 
 ## Current architecture
 
@@ -95,12 +107,13 @@ dbt staging -> classification fact -> measurement metrics
 | Detection | TF-IDF + logistic regression, then judge protocol | Fast decisions, ambiguous-band escalation, latency and cost capture |
 | Run lineage | Immutable `EvalRun` manifest | Dataset/config hashes, artifact versions, thresholds, Git SHA, and baseline identity |
 | Warehouse | DuckDB | Run-aware raw contracts, constraints, immutable/idempotent ingestion |
-| Transform | dbt | Classification outcomes, family catch rate, FP burden, tier contribution |
+| Transform | dbt | Classification outcomes, family catch rate, FP burden, tier contribution, paired run deltas |
+| Policy | Configurable regression gate | Per-family catch degradation and evaluation-wide FP increase |
 | Presentation | React mock only | Illustrative design; not connected to measured outputs |
 
-Public-corpus ingestion, baseline comparison, regression gates, a wired dashboard, and paid
-real-judge evaluation are planned—not part of `v0.1.0`. Append-only multi-run storage was added
-after that foundation release.
+Public-corpus ingestion, a wired dashboard, and paid real-judge evaluation are planned—not part of
+`v0.1.0`. Append-only multi-run storage, paired comparison, and regression gates were added after
+that foundation release.
 
 ## Why this exists
 
@@ -175,8 +188,8 @@ The offline release run verifies the shape and integrity of the system:
 - 1,800 events, 1,800 truth records, 1,800 detections, and 1,800 joined results;
 - no missing event references;
 - 1,219 fast-tier decisions and 581 stub-judge decisions;
-- 12/12 Python tests passing;
-- 86/86 dbt models and tests passing; and
+- 19/19 Python tests passing;
+- 101/101 dbt models and tests passing; and
 - the same test path passing from a clean GitHub Actions environment.
 
 These numbers validate pipeline wiring and the deterministic stub's behavior. They are not evidence
@@ -197,12 +210,12 @@ of real LLM-judge quality or live production safeguard performance.
 
 ## Next milestone
 
-The next milestone is comparison and reliable execution:
+The next milestone is reliable execution and stronger statistics:
 
-1. calculate paired baseline/candidate deltas from the stored run lineage;
-2. add configurable regression gates and a deterministic CI evaluation suite;
-3. add failure accounting, bounded retries, budgets, and resume semantics; and
-4. add one properly licensed public corpus.
+1. add failure accounting, bounded retries, budgets, and resume semantics;
+2. add uncertainty estimates so gates can distinguish signal from sampling noise;
+3. add one properly licensed public corpus; and
+4. define a small deterministic CI regression suite.
 
 Dashboard wiring and paid real-judge evaluation remain deferred until their outputs can be
 reproduced and compared.

@@ -1,7 +1,9 @@
 from evalgauge.generate.corpus import DEFAULT_SPEC
 import duckdb
+import pytest
 
-from evalgauge.offline import run_pipeline
+from evalgauge.gates import GateStatus, evaluate_gate
+from evalgauge.offline import build_models, run, run_pipeline
 
 
 def test_offline_run_is_complete_and_detector_input_is_blind(tmp_path, monkeypatch):
@@ -62,3 +64,27 @@ def test_offline_runs_append_and_dbt_metrics_stay_run_scoped(tmp_path):
             order by run_id
             """
         ).fetchall() == [("baseline", 6), ("candidate", 6)]
+        assert connection.execute(
+            "select count(*) from main_marts.fct_case_comparisons"
+        ).fetchone()[0] == 1800
+        assert connection.execute(
+            "select count(*) from main_metrics.mtr_run_comparisons"
+        ).fetchone()[0] == 6
+
+    assert evaluate_gate(db_path, "candidate").status is GateStatus.PASS
+
+
+def test_dbt_rejects_comparison_across_different_datasets(tmp_path):
+    db_path = tmp_path / "incompatible.duckdb"
+    run(db_path, seed=21, run_id="baseline")
+    run(
+        db_path,
+        seed=22,
+        run_id="candidate",
+        baseline_run_id="baseline",
+    )
+
+    with pytest.raises(RuntimeError, match="dbt build failed"):
+        build_models(db_path)
+    with pytest.raises(ValueError, match="not case-compatible"):
+        evaluate_gate(db_path, "candidate")

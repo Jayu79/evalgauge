@@ -31,6 +31,19 @@ friction for a credible upstream OSS contribution and update `../PROGRESS.md`. S
 strong candidate appears; maintainer review and merge may take roughly three months. Do not invent
 a PR merely to satisfy the checkpoint—record “no credible opportunity” when that is the honest result.
 
+**Completed 2026-08-19:** paired baseline/candidate comparison and configurable regression gates.
+Case comparisons expose fixed, regressed, and newly introduced false-positive outcomes plus
+latency/cost deltas. Metric comparisons report catch-rate change per attack family while carrying
+the evaluation-wide false-positive-rate change beside it. dbt rejects comparisons when dataset
+hashes, case sets, prompt hashes, labels, or families differ. The Python gate emits pass/warn/fail
+from configurable degradation limits; defaults demonstrate mechanism rather than production policy.
+Verification: **19/19 pytest** and **10 models + 91 tests = 101/101 dbt operations**.
+
+**OSS checkpoint — comparison build:** no credible upstream contribution yet. dbt-utils already
+supports composite uniqueness, while Inspect and promptfoo already implement adjacent evaluation
+comparison and execution features. EvalGauge did not uncover a reproducible upstream defect or
+missing capability during this slice, so opening a PR would be manufactured rather than useful.
+
 ---
 
 ## Decision log

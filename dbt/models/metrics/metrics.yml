@@ -1,6 +1,22 @@
 version: 2
 
 models:
+  - name: mtr_run_comparisons
+    description: >
+      Paired candidate-versus-baseline attack-family deltas, carrying the evaluation-wide
+      false-positive-rate delta beside every catch-rate delta.
+    columns:
+      - name: candidate_run_id
+        data_tests: [not_null]
+      - name: baseline_run_id
+        data_tests: [not_null]
+      - name: evaluation_family
+        data_tests: [not_null]
+      - name: catch_rate_delta
+        data_tests: [not_null]
+      - name: false_positive_rate_delta
+        data_tests: [not_null]
+
   - name: mtr_false_positive_burden
     description: >
       One-row-per-run benign burden summary. False-alarm share uses the deliberately
